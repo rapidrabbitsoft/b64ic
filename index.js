@@ -5,6 +5,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
+import chalk from 'chalk';
+
+// Configure chalk for better terminal compatibility
+chalk.level = 3; // Enable all colors
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,7 +92,7 @@ function scanHtmlForBase64Data(htmlContent) {
  */
 async function fetchAndScanUrl(url) {
   try {
-    console.log(`🌐 Fetching content from: ${url}`);
+    console.log(chalk.blue(`🌐 Fetching content from: ${url}`));
     const response = await fetch(url);
     
     if (!response.ok) {
@@ -102,10 +106,10 @@ async function fetchAndScanUrl(url) {
     
     // Check if it's HTML content
     if (contentType.includes('text/html') || content.trim().toLowerCase().startsWith('<!doctype') || content.includes('<html')) {
-      console.log('📄 Detected HTML content, performing enhanced scan...');
+      console.log(chalk.yellow('📄 Detected HTML content, performing enhanced scan...'));
       base64Data = scanHtmlForBase64Data(content);
     } else {
-      console.log('📄 Performing standard content scan...');
+      console.log(chalk.yellow('📄 Performing standard content scan...'));
       base64Data = scanForBase64Data(content);
     }
     
@@ -113,7 +117,7 @@ async function fetchAndScanUrl(url) {
       throw new Error('No base64 image data found in the URL content');
     }
     
-    console.log(`🔍 Found ${base64Data.length} base64 image(s) in the URL`);
+    console.log(chalk.green(`🔍 Found ${base64Data.length} base64 image(s) in the URL`));
     return base64Data;
   } catch (error) {
     throw new Error(`Failed to fetch or scan URL: ${error.message}`);
@@ -220,9 +224,9 @@ async function convertBase64ToImage(base64Data, outputPath = null) {
     const buffer = Buffer.from(rawBase64, 'base64');
     await fs.writeFile(outputPath, buffer);
     
-    console.log(`✅ Successfully converted base64 image to: ${outputPath}`);
-    console.log(`📊 File size: ${(buffer.length / 1024).toFixed(2)} KB`);
-    console.log(`🖼️  Image type: ${mimeType}`);
+    console.log(chalk.green(`✅ Successfully converted base64 image to: ${outputPath}`));
+    console.log(chalk.blue(`📊 File size: ${(buffer.length / 1024).toFixed(2)} KB`));
+    console.log(chalk.magenta(`🖼️  Image type: ${mimeType}`));
     
     return outputPath;
   } catch (error) {
@@ -256,7 +260,7 @@ program
               base64Data = base64DataArray[0];
             } else {
               // Multiple images found, process each one
-              console.log(`📸 Processing ${base64DataArray.length} images from URL...`);
+              console.log(chalk.yellow(`📸 Processing ${base64DataArray.length} images from URL...`));
               for (let i = 0; i < base64DataArray.length; i++) {
                 const currentOutput = options.output ? 
                   `${options.output.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
@@ -276,13 +280,13 @@ program
           } else if (options.file) {
             try {
               base64Data = await fs.readFile(options.file, 'utf8');
-              console.log(`📁 Reading base64 data from: ${options.file}`);
+              console.log(chalk.blue(`📁 Reading base64 data from: ${options.file}`));
             } catch (error) {
-              console.error(`❌ Error reading file: ${error.message}`);
+              console.error(chalk.red(`❌ Error reading file: ${error.message}`));
               process.exit(1);
             }
           } else {
-            console.error('❌ Error: Please provide base64 data as argument or use --url/--file option');
+            console.error(chalk.red('❌ Error: Please provide base64 data as argument or use --url/--file option'));
             process.exit(1);
           }
         }
@@ -291,13 +295,13 @@ program
       base64Data = base64Data.trim().replace(/\s/g, '');
       
       if (!base64Data) {
-        console.error('❌ Error: Empty base64 data provided');
+        console.error(chalk.red('❌ Error: Empty base64 data provided'));
         process.exit(1);
       }
       
       await convertBase64ToImage(base64Data, options.output);
     } catch (error) {
-      console.error(`❌ Error: ${error.message}`);
+      console.error(chalk.red(`❌ Error: ${error.message}`));
       process.exit(1);
     }
   });
@@ -313,15 +317,15 @@ program
       
       if (!base64Data) {
         if (!options.file) {
-          console.error('❌ Error: Please provide base64 data as argument or use --file option');
+          console.error(chalk.red('❌ Error: Please provide base64 data as argument or use --file option'));
           process.exit(1);
         }
         
         try {
           base64Data = await fs.readFile(options.file, 'utf8');
-          console.log(`📁 Reading base64 data from: ${options.file}`);
+          console.log(chalk.blue(`📁 Reading base64 data from: ${options.file}`));
         } catch (error) {
-          console.error(`❌ Error reading file: ${error.message}`);
+          console.error(chalk.red(`❌ Error reading file: ${error.message}`));
           process.exit(1);
         }
       }
@@ -329,24 +333,24 @@ program
       base64Data = base64Data.trim().replace(/\s/g, '');
       
       if (!base64Data) {
-        console.error('❌ Error: Empty base64 data provided');
+        console.error(chalk.red('❌ Error: Empty base64 data provided'));
         process.exit(1);
       }
       
       const mimeType = detectImageType(base64Data);
       if (mimeType) {
         const extension = mimeToExtension[mimeType];
-        console.log(`🔍 Detected image type: ${mimeType}`);
-        console.log(`📄 File extension: ${extension || 'unknown'}`);
+        console.log(chalk.green(`🔍 Detected image type: ${mimeType}`));
+        console.log(chalk.blue(`📄 File extension: ${extension || 'unknown'}`));
         
         const rawBase64 = extractBase64Data(base64Data);
         const buffer = Buffer.from(rawBase64, 'base64');
-        console.log(`📊 Estimated file size: ${(buffer.length / 1024).toFixed(2)} KB`);
+        console.log(chalk.blue(`📊 Estimated file size: ${(buffer.length / 1024).toFixed(2)} KB`));
       } else {
-        console.log('❓ Could not detect image type from the provided data');
+        console.log(chalk.yellow('❓ Could not detect image type from the provided data'));
       }
     } catch (error) {
-      console.error(`❌ Error: ${error.message}`);
+      console.error(chalk.red(`❌ Error: ${error.message}`));
       process.exit(1);
     }
   });
@@ -359,17 +363,17 @@ if (process.argv.length === 2) {
       let base64Data;
       try {
         base64Data = await fs.readFile('DATA', 'utf8');
-        console.log('📁 Reading base64 data from: DATA');
-      } catch (err) {
-        console.error('❌ Error: No arguments provided and no DATA file found in current directory.');
-        console.error('Usage: ./b64ic [data] [options] or ./b64ic -f <file> [options] or ./b64ic -u <url> [options] or ./b64ic [options] (with DATA file)');
-        process.exit(1);
-      }
+        console.log(chalk.blue(`📁 Reading base64 data from: DATA`));
+              } catch (err) {
+          console.error(chalk.red('❌ Error: No arguments provided and no DATA file found in current directory.'));
+          console.error(chalk.yellow('Usage: ./b64ic [data] [options] or ./b64ic -f <file> [options] or ./b64ic -u <url> [options] or ./b64ic [options] (with DATA file)'));
+          process.exit(1);
+        }
       
       // Remove whitespace and newlines
       base64Data = base64Data.trim().replace(/\s/g, '');
       if (!base64Data) {
-        console.error('❌ Error: Empty base64 data in DATA file');
+        console.error(chalk.red('❌ Error: Empty base64 data in DATA file'));
         process.exit(1);
       }
       
@@ -377,7 +381,7 @@ if (process.argv.length === 2) {
       const outputOption = process.cwd() + '/image_' + Date.now();
       await convertBase64ToImage(base64Data, outputOption);
     } catch (error) {
-      console.error(`❌ Error: ${error.message}`);
+      console.error(chalk.red(`❌ Error: ${error.message}`));
       process.exit(1);
     }
   })();
@@ -427,7 +431,7 @@ if (process.argv.length === 2) {
             base64Data = base64DataArray[0];
           } else {
             // Multiple images found, process each one
-            console.log(`�� Processing ${base64DataArray.length} images from URL...`);
+            console.log(chalk.yellow(`📸 Processing ${base64DataArray.length} images from URL...`));
             for (let i = 0; i < base64DataArray.length; i++) {
               const currentOutput = outputOption ? 
                 `${outputOption.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
@@ -446,17 +450,17 @@ if (process.argv.length === 2) {
           }
         } else if (fileOption) {
           const fileContent = await fs.readFile(fileOption, 'utf8');
-          console.log(`📁 Reading base64 data from: ${fileOption}`);
+          console.log(chalk.blue(`📁 Reading base64 data from: ${fileOption}`));
           
           // Check if it's HTML content
           if (fileContent.trim().toLowerCase().startsWith('<!doctype') || fileContent.includes('<html')) {
-            console.log('📄 Detected HTML content, performing enhanced scan...');
+            console.log(chalk.yellow('📄 Detected HTML content, performing enhanced scan...'));
             const base64DataArray = scanHtmlForBase64Data(fileContent);
             if (base64DataArray.length === 1) {
               base64Data = base64DataArray[0];
             } else if (base64DataArray.length > 1) {
               // Multiple images found, process each one
-              console.log(`📸 Processing ${base64DataArray.length} images from HTML file...`);
+              console.log(chalk.yellow(`📸 Processing ${base64DataArray.length} images from HTML file...`));
               for (let i = 0; i < base64DataArray.length; i++) {
                 const currentOutput = outputOption ? 
                   `${outputOption.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
@@ -482,7 +486,7 @@ if (process.argv.length === 2) {
               base64Data = base64DataArray[0];
             } else if (base64DataArray.length > 1) {
               // Multiple images found, process each one
-              console.log(`📸 Processing ${base64DataArray.length} images from file...`);
+              console.log(chalk.yellow(`📸 Processing ${base64DataArray.length} images from file...`));
               for (let i = 0; i < base64DataArray.length; i++) {
                 const currentOutput = outputOption ? 
                   `${outputOption.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
@@ -506,9 +510,9 @@ if (process.argv.length === 2) {
             // Look for a file called DATA in the current directory
             try {
               base64Data = await fs.readFile('DATA', 'utf8');
-              console.log('📁 Reading base64 data from: DATA');
+              console.log(chalk.blue(`📁 Reading base64 data from: DATA`));
             } catch (err) {
-              console.error('❌ Error: No base64 data provided, no URL/file path given, and no DATA file found in current directory.');
+              console.error(chalk.red('❌ Error: No base64 data provided, no URL/file path given, and no DATA file found in current directory.'));
               process.exit(1);
             }
           }
@@ -516,7 +520,7 @@ if (process.argv.length === 2) {
       // Remove whitespace and newlines
       base64Data = base64Data.trim().replace(/\s/g, '');
       if (!base64Data) {
-        console.error('❌ Error: Empty base64 data provided');
+        console.error(chalk.red('❌ Error: Empty base64 data provided'));
         process.exit(1);
       }
       // If output directory is specified, prepend it to outputOption or use default filename
@@ -537,7 +541,7 @@ if (process.argv.length === 2) {
       }
       await convertBase64ToImage(base64Data, outputOption);
     } catch (error) {
-      console.error(`❌ Error: ${error.message}`);
+      console.error(chalk.red(`❌ Error: ${error.message}`));
       process.exit(1);
     }
   })();
