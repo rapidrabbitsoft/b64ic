@@ -1,0 +1,29 @@
+{
+  "name": "b64ic",
+  "version": "1.0.0",
+  "description": "CLI tool to convert base64 encoded images to actual image files",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "b64ic": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "base64",
+    "image",
+    "converter",
+    "cli",
+    "tool"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.1.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 
