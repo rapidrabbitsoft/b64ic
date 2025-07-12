@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fetch from 'node-fetch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +23,45 @@ const mimeToExtension = {
   'image/svg+xml': 'svg',
   'image/ico': 'ico'
 };
+
+/**
+ * Scan content for base64 data URLs
+ * @param {string} content - The content to scan
+ * @returns {string[]} - Array of found base64 data URLs
+ */
+function scanForBase64Data(content) {
+  const base64Pattern = /data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g;
+  const matches = content.match(base64Pattern);
+  return matches || [];
+}
+
+/**
+ * Fetch content from URL and scan for base64 data
+ * @param {string} url - The URL to fetch
+ * @returns {Promise<string[]>} - Array of found base64 data URLs
+ */
+async function fetchAndScanUrl(url) {
+  try {
+    console.log(`🌐 Fetching content from: ${url}`);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const content = await response.text();
+    const base64Data = scanForBase64Data(content);
+    
+    if (base64Data.length === 0) {
+      throw new Error('No base64 image data found in the URL content');
+    }
+    
+    console.log(`🔍 Found ${base64Data.length} base64 image(s) in the URL`);
+    return base64Data;
+  } catch (error) {
+    throw new Error(`Failed to fetch or scan URL: ${error.message}`);
+  }
+}
 
 /**
  * Detect image type from base64 data by checking the data URL prefix
@@ -144,26 +184,51 @@ program
   .description('Convert base64 image data to file')
   .argument('[data]', 'Base64 encoded image data or data URL')
   .option('-f, --file <path>', 'Read base64 data from file')
+  .option('-u, --url <url>', 'Fetch and scan URL for base64 data')
   .option('-o, --output <path>', 'Output file path')
+  .option('-d, --outputdir <dir>', 'Output directory')
   .action(async (data, options) => {
-    try {
-      let base64Data = data;
-      
-      // If no data provided as argument, check for file option
-      if (!base64Data) {
-        if (!options.file) {
-          console.error('❌ Error: Please provide base64 data as argument or use --file option');
-          process.exit(1);
-        }
+          try {
+        let base64Data = data;
         
-        try {
-          base64Data = await fs.readFile(options.file, 'utf8');
-          console.log(`📁 Reading base64 data from: ${options.file}`);
-        } catch (error) {
-          console.error(`❌ Error reading file: ${error.message}`);
-          process.exit(1);
+        // If no data provided as argument, check for URL option first, then file option
+        if (!base64Data) {
+          if (options.url) {
+            const base64DataArray = await fetchAndScanUrl(options.url);
+            if (base64DataArray.length === 1) {
+              base64Data = base64DataArray[0];
+            } else {
+              // Multiple images found, process each one
+              console.log(`📸 Processing ${base64DataArray.length} images from URL...`);
+              for (let i = 0; i < base64DataArray.length; i++) {
+                const currentOutput = options.output ? 
+                  `${options.output.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
+                  `converted_image_${Date.now()}_${i + 1}`;
+                
+                if (options.outputdir) {
+                  const dir = options.outputdir || process.cwd();
+                  const filename = currentOutput.split('/').pop();
+                  const finalOutput = `${dir}/${filename}`;
+                  await convertBase64ToImage(base64DataArray[i], finalOutput);
+                } else {
+                  await convertBase64ToImage(base64DataArray[i], currentOutput);
+                }
+              }
+              return; // Exit early since we processed multiple images
+            }
+          } else if (options.file) {
+            try {
+              base64Data = await fs.readFile(options.file, 'utf8');
+              console.log(`📁 Reading base64 data from: ${options.file}`);
+            } catch (error) {
+              console.error(`❌ Error reading file: ${error.message}`);
+              process.exit(1);
+            }
+          } else {
+            console.error('❌ Error: Please provide base64 data as argument or use --url/--file option');
+            process.exit(1);
+          }
         }
-      }
       
       // Remove whitespace and newlines
       base64Data = base64Data.trim().replace(/\s/g, '');
@@ -266,12 +331,16 @@ if (process.argv.length === 2) {
   
   // Parse remaining arguments for convert options
   let fileOption = null;
+  let urlOption = null;
   let outputOption = null;
   let outputDir = null;
   
   for (let i = 0; i < remainingArgs.length; i++) {
     if (remainingArgs[i] === '-f' || remainingArgs[i] === '--file') {
       fileOption = remainingArgs[i + 1];
+      i++;
+    } else if (remainingArgs[i] === '-u' || remainingArgs[i] === '--url') {
+      urlOption = remainingArgs[i + 1];
       i++;
     } else if (remainingArgs[i] === '-o' || remainingArgs[i] === '--output') {
       outputOption = remainingArgs[i + 1];
@@ -282,25 +351,48 @@ if (process.argv.length === 2) {
     }
   }
 
-  (async () => {
-    try {
-      let base64Data = data;
-      // If no data is provided, try file option
-      if (!base64Data) {
-        if (fileOption) {
-          base64Data = await fs.readFile(fileOption, 'utf8');
-          console.log(`📁 Reading base64 data from: ${fileOption}`);
-        } else {
-          // Look for a file called DATA in the current directory
-          try {
-            base64Data = await fs.readFile('DATA', 'utf8');
-            console.log('📁 Reading base64 data from: DATA');
-          } catch (err) {
-            console.error('❌ Error: No base64 data provided, no file path given, and no DATA file found in current directory.');
-            process.exit(1);
+      (async () => {
+      try {
+        let base64Data = data;
+        // If no data is provided, try URL option first, then file option, then DATA file
+        if (!base64Data) {
+          if (urlOption) {
+            const base64DataArray = await fetchAndScanUrl(urlOption);
+            if (base64DataArray.length === 1) {
+              base64Data = base64DataArray[0];
+            } else {
+              // Multiple images found, process each one
+              console.log(`📸 Processing ${base64DataArray.length} images from URL...`);
+              for (let i = 0; i < base64DataArray.length; i++) {
+                const currentOutput = outputOption ? 
+                  `${outputOption.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
+                  `${process.cwd()}/image_${Date.now()}_${i + 1}`;
+                
+                if (outputDir) {
+                  const dir = outputDir || process.cwd();
+                  const filename = currentOutput.split('/').pop();
+                  const finalOutput = `${dir}/${filename}`;
+                  await convertBase64ToImage(base64DataArray[i], finalOutput);
+                } else {
+                  await convertBase64ToImage(base64DataArray[i], currentOutput);
+                }
+              }
+              return; // Exit early since we processed multiple images
+            }
+          } else if (fileOption) {
+            base64Data = await fs.readFile(fileOption, 'utf8');
+            console.log(`📁 Reading base64 data from: ${fileOption}`);
+          } else {
+            // Look for a file called DATA in the current directory
+            try {
+              base64Data = await fs.readFile('DATA', 'utf8');
+              console.log('📁 Reading base64 data from: DATA');
+            } catch (err) {
+              console.error('❌ Error: No base64 data provided, no URL/file path given, and no DATA file found in current directory.');
+              process.exit(1);
+            }
           }
         }
-      }
       // Remove whitespace and newlines
       base64Data = base64Data.trim().replace(/\s/g, '');
       if (!base64Data) {

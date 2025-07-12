@@ -44,7 +44,7 @@ b64ic --help
 
 ### Default Behavior (No Command Needed)
 
-You can simply call `./b64ic` with your base64 data, a file path, or nothing at all:
+You can simply call `./b64ic` with your base64 data, a file path, a URL, or nothing at all:
 
 1. **Pass base64 data directly:**
    ```bash
@@ -54,24 +54,31 @@ You can simply call `./b64ic` with your base64 data, a file path, or nothing at 
    ```bash
    ./b64ic -f path/to/base64.txt -o output.png
    ```
-3. **If no data or file is provided, it will look for a file called `DATA` in the current directory:**
+3. **Pass a URL to fetch and scan for base64 data:**
+   ```bash
+   ./b64ic -u https://example.com/page.html -o output.png
+   ```
+4. **If no data, file, or URL is provided, it will look for a file called `DATA` in the current directory:**
    ```bash
    ./b64ic -o output.png
    # (Assumes a file named DATA exists in the current directory)
    ```
-4. **Specify output directory:**
+5. **Specify output directory:**
    ```bash
    ./b64ic "<base64-data-or-data-url>" -d /path/to/outputdir
    # or with a file
    ./b64ic -f path/to/base64.txt -d /path/to/outputdir
+   # or with a URL
+   ./b64ic -u https://example.com/page.html -d /path/to/outputdir
    ```
    If `-d`/`--outputdir` is not provided, the current directory is used.
 
 ### Command Options
 
 #### Convert Command (or default mode)
-- `[data]` - Base64 encoded image data or data URL (optional if using --file or DATA file)
+- `[data]` - Base64 encoded image data or data URL (optional if using --file, --url, or DATA file)
 - `-f, --file <path>` - Read base64 data from file
+- `-u, --url <url>` - Fetch and scan URL for base64 data
 - `-o, --output <path>` - Specify output file path
 - `-d, --outputdir <dir>` - Specify output directory (default: current directory)
 
@@ -91,19 +98,25 @@ You can simply call `./b64ic` with your base64 data, a file path, or nothing at 
 ./b64ic -f image_data.txt -o converted_image.png
 ```
 
-### Example 3: Use DATA file in current directory
+### Example 3: Fetch and scan URL for base64 data
+```bash
+./b64ic -u https://example.com/page.html -o found_image.png
+```
+
+### Example 4: Use DATA file in current directory
 ```bash
 # Place your base64 data in a file named DATA
 ./b64ic -o from_data_file.png
 ```
 
-### Example 4: Specify output directory
+### Example 5: Specify output directory
 ```bash
 ./b64ic "<base64-data>" -d ./output_images
 ./b64ic -f image_data.txt -d ./output_images
+./b64ic -u https://example.com/page.html -d ./output_images
 ```
 
-### Example 5: Detect image type
+### Example 6: Detect image type
 ```bash
 ./b64ic detect -f image_data.txt
 ```
