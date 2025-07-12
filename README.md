@@ -1,185 +1,288 @@
-# Base64 Image Converter CLI
+# Base64 Image Converter CLI (b64ic)
 
-A command-line tool to convert base64 encoded images to actual image files with automatic content type detection.
+A powerful command-line tool to convert base64 encoded images to actual image files with automatic content type detection and URL/HTML scanning capabilities.
 
-## Features
+## ✨ Features
 
 - 🔍 **Auto-detection**: Automatically detects image type from base64 data or data URLs
-- 📁 **File support**: Can read base64 data from files or accept it as command line arguments
-- 🎯 **Multiple formats**: Supports JPEG, PNG, GIF, WebP, BMP, TIFF, SVG, and ICO
-- 🚀 **Fast**: Lightweight and efficient conversion
-- 📊 **Info display**: Shows file size and detected image type
-- 🛠️ **Flexible output**: Custom output paths or auto-generated filenames
+- 📁 **Multiple input sources**: Accept data from command line, files, URLs, or a default DATA file
+- 🌐 **URL & HTML scanning**: Fetch and scan web pages or local HTML files for embedded base64 images
+- 🗂️ **Multi-image extraction**: Extracts and saves all base64 images found in HTML or web pages
+- 🎯 **Wide format support**: JPEG, PNG, GIF, WebP, BMP, TIFF, SVG, and ICO
+- 🚀 **Fast & lightweight**: Efficient conversion with minimal dependencies
+- 📊 **Rich output**: Shows file size, detected image type, and conversion status
+- 🛠️ **Flexible output**: Custom filenames, directories, or auto-generated names
+- 📝 **Smart defaults**: Uses current directory and timestamped filenames when not specified
 
-## Installation
+## 🚀 Quick Start
 
 ### Prerequisites
-
 - Node.js 16.0.0 or higher
 
-### Install dependencies (for development)
+### Installation
 
 ```bash
+# Clone or download the project
+git clone <repository-url>
+cd base64-image-converter
 npm install
+chmod +x index.js
 ```
 
-### Local Usage (no install)
+### Basic Usage
 
 ```bash
-# Run directly from project root
-./b64ic --help
+# Convert base64 data directly
+./b64ic "data:image/png;base64,..."
+
+# Convert with custom output
+./b64ic "data:image/png;base64,..." -o my_image.png
+
+# Read from file
+./b64ic -f base64_data.txt
+
+# Scan URL for base64 images
+./b64ic -u https://example.com/page.html
+
+# Extract all base64 images from a local HTML file
+./b64ic -f mypage.html
+
+# Use DATA file in current directory
+./b64ic
 ```
 
-### Global Installation (optional)
+## 🖼️ HTML & Web Page Extraction
 
-To use `b64ic` from anywhere:
+You can extract **all** base64 images from any HTML file or web page:
 
+### Extract from a local HTML file
 ```bash
-npm install -g .
-# Now you can run:
-b64ic --help
+./b64ic -f mypage.html
+```
+- Finds all `<img src="data:image/...">`, inline styles, CSS, and any base64 image data in the HTML
+- Saves each image as a separate file (e.g., `image_<timestamp>_1.png`, `image_<timestamp>_2.jpg`, ...)
+- Detects and uses the correct file extension for each image
+
+### Extract from a web page
+```bash
+./b64ic -u https://example.com/page.html
+```
+- Fetches the page and scans for all embedded base64 images
+- Saves each image as a separate file with the correct extension
+
+## 📖 Usage Guide
+
+### Input Sources (in order of priority)
+
+1. **Direct data**: Pass base64 string as first argument
+2. **URL scanning**: Use `-u` or `--url` to fetch and scan web pages
+3. **File input**: Use `-f` or `--file` to read from a file (including HTML)
+4. **DATA file**: Automatically looks for a file named `DATA` in current directory
+
+### Output Options
+
+- **Auto-generated**: `image_<timestamp>.<extension>` (default)
+- **Custom name**: Use `-o` or `--output` for specific filename
+- **Custom directory**: Use `-d` or `--outputdir` for output location
+
+### Command Modes
+
+#### Default Mode (No Command)
+```bash
+./b64ic "base64-data"
+./b64ic -f file.txt
+./b64ic -u https://example.com
+./b64ic -o output.png
 ```
 
-## Usage
-
-### Default Behavior (No Command Needed)
-
-You can simply call `./b64ic` with your base64 data, a file path, a URL, or nothing at all:
-
-1. **Pass base64 data directly:**
-   ```bash
-   ./b64ic "<base64-data-or-data-url>" -o output.png
-   ```
-2. **Pass a file path to a file containing base64 data:**
-   ```bash
-   ./b64ic -f path/to/base64.txt -o output.png
-   ```
-3. **Pass a URL to fetch and scan for base64 data:**
-   ```bash
-   ./b64ic -u https://example.com/page.html -o output.png
-   ```
-4. **If no data, file, or URL is provided, it will look for a file called `DATA` in the current directory:**
-   ```bash
-   ./b64ic -o output.png
-   # (Assumes a file named DATA exists in the current directory)
-   ```
-5. **Specify output directory:**
-   ```bash
-   ./b64ic "<base64-data-or-data-url>" -d /path/to/outputdir
-   # or with a file
-   ./b64ic -f path/to/base64.txt -d /path/to/outputdir
-   # or with a URL
-   ./b64ic -u https://example.com/page.html -d /path/to/outputdir
-   ```
-   If `-d`/`--outputdir` is not provided, the current directory is used.
-
-### Command Options
-
-#### Convert Command (or default mode)
-- `[data]` - Base64 encoded image data or data URL (optional if using --file, --url, or DATA file)
-- `-f, --file <path>` - Read base64 data from file
-- `-u, --url <url>` - Fetch and scan URL for base64 data
-- `-o, --output <path>` - Specify output file path
-- `-d, --outputdir <dir>` - Specify output directory (default: current directory)
-
-#### Detect Command
-- `[data]` - Base64 encoded image data or data URL (optional if using --file)
-- `-f, --file <path>` - Read base64 data from file
-
-## Examples
-
-### Example 1: Convert a data URL
+#### Explicit Convert Command
 ```bash
-./b64ic "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD..." -o myimage.jpg
+./b64ic convert "base64-data"
+./b64ic convert -f file.txt -o output.png
+./b64ic convert -u https://example.com -d ./images
 ```
 
-### Example 2: Read from file and specify output
+#### Detect Command (No Conversion)
 ```bash
+./b64ic detect "base64-data"
+./b64ic detect -f file.txt
+```
+
+## 💡 Examples
+
+### Extract all base64 images from an HTML file
+```bash
+./b64ic -f test.html
+# Output:
+# 📁 Reading base64 data from: test.html
+# 📄 Detected HTML content, performing enhanced scan...
+# 📸 Processing 4 images from HTML file...
+# ✅ Successfully converted base64 image to: .../image_<timestamp>_1.png
+# ✅ Successfully converted base64 image to: .../image_<timestamp>_2.jpg
+# ✅ Successfully converted base64 image to: .../image_<timestamp>_3.gif
+# ✅ Successfully converted base64 image to: .../image_<timestamp>_4.webp
+```
+
+### Extract all base64 images from a web page
+```bash
+./b64ic -u https://example.com/page.html
+```
+
+### Basic Conversions
+```bash
+./b64ic "data:image/png;base64,..." -o logo.png
+./b64ic "/9j/4AAQSkZJRgABAQEAYABgAAD..." -o photo.jpg
 ./b64ic -f image_data.txt -o converted_image.png
 ```
 
-### Example 3: Fetch and scan URL for base64 data
+### File Operations
 ```bash
-./b64ic -u https://example.com/page.html -o found_image.png
+./b64ic -f /path/to/base64_data.txt
+./b64ic -f image_data.txt -d /path/to/output/
 ```
 
-### Example 4: Use DATA file in current directory
+### Advanced Usage
 ```bash
-# Place your base64 data in a file named DATA
-./b64ic -o from_data_file.png
-```
+# Multiple images from URL (auto-numbered)
+./b64ic -u https://example.com/page.html -o batch_image
+# Creates: batch_image_1.png, batch_image_2.jpg, etc.
 
-### Example 5: Specify output directory
-```bash
-./b64ic "<base64-data>" -d ./output_images
-./b64ic -f image_data.txt -d ./output_images
-./b64ic -u https://example.com/page.html -d ./output_images
-```
-
-### Example 6: Detect image type
-```bash
+# Detect image type without converting
 ./b64ic detect -f image_data.txt
+
+# Convert with full path specification
+./b64ic "base64-data" -d /absolute/path/to/output -o custom_name
 ```
 
-## Supported Image Formats
+## 🖼️ Supported Formats
 
-| Format | MIME Type | File Extension | Detection Method |
-|--------|-----------|----------------|------------------|
-| JPEG | image/jpeg | .jpg | File signature (FF D8 FF) |
-| PNG | image/png | .png | File signature (89 50 4E 47) |
-| GIF | image/gif | .gif | File signature (47 49 46 38) |
-| WebP | image/webp | .webp | RIFF header + WEBP chunk |
-| BMP | image/bmp | .bmp | File signature (42 4D) |
-| TIFF | image/tiff | .tiff | File signature (49 49 2A 00 or 4D 4D 00 2A) |
-| SVG | image/svg+xml | .svg | Data URL prefix |
-| ICO | image/ico | .ico | Data URL prefix |
+| Format | MIME Type | Extension | Detection Method |
+|--------|-----------|-----------|------------------|
+| JPEG | `image/jpeg` | `.jpg` | File signature (FF D8 FF) |
+| PNG | `image/png` | `.png` | File signature (89 50 4E 47) |
+| GIF | `image/gif` | `.gif` | File signature (47 49 46 38) |
+| WebP | `image/webp` | `.webp` | RIFF header + WEBP chunk |
+| BMP | `image/bmp` | `.bmp` | File signature (42 4D) |
+| TIFF | `image/tiff` | `.tiff` | File signature (49 49 2A 00 or 4D 4D 00 2A) |
+| SVG | `image/svg+xml` | `.svg` | Data URL prefix |
+| ICO | `image/ico` | `.ico` | Data URL prefix |
 
-## Input Formats
+## 📥 Input Formats
 
 The tool accepts base64 data in two formats:
 
-1. **Data URLs**: `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`
-2. **Raw base64**: `iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`
+### Data URLs
+```
+data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+```
 
-## Output
+### Raw Base64
+```
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+```
 
-- **Auto-generated filename**: `converted_image_1234567890.png` (with timestamp)
-- **Custom filename**: Use the `-o` option to specify your own filename
-- **File extension**: Automatically added based on detected image type
-- **Output directory**: Use `-d`/`--outputdir` to specify, otherwise uses current directory
+## 📤 Output Behavior
 
-## Error Handling
+### Filename Generation
+- **Default**: `image_<timestamp>.<extension>`
+- **Custom**: Use `-o` option for specific names
+- **Multiple images**: Auto-numbered with suffixes (`_1`, `_2`, etc.)
+
+### Directory Handling
+- **Default**: Current working directory
+- **Custom**: Use `-d` option for specific directories
+- **Path resolution**: Automatically handles relative and absolute paths
+
+### Extension Detection
+- **Automatic**: Based on detected image type
+- **Override**: Can be specified in output filename
+- **Fallback**: Uses detected extension if none provided
+
+## ⚠️ Error Handling
 
 The tool provides clear error messages for:
-- Invalid base64 data
-- Unsupported image formats
-- File read/write errors
-- Missing input data
 
-## Development
+- **Invalid base64 data**: Malformed or corrupted base64 strings
+- **Unsupported formats**: Image types not in the supported list
+- **File operations**: Read/write errors, missing files
+- **Network issues**: URL fetch failures, timeouts
+- **Missing input**: No data source provided
+- **Permission errors**: Directory/file access issues
 
-### Running Tests
+## 🧪 Testing
+
+Run the comprehensive test suite:
+
 ```bash
 npm test
 ```
+
+This will test:
+- Basic conversions
+- File operations
+- URL scanning
+- Error handling
+- Multiple image processing
+
+## 🏗️ Development
 
 ### Project Structure
 ```
 base64-image-converter/
 ├── index.js          # Main CLI tool
 ├── package.json      # Dependencies and scripts
-├── README.md         # This file
-└── test.js           # Test file (optional)
+├── README.md         # This documentation
+├── test.js           # Test suite
+└── .gitignore        # Git ignore rules
 ```
 
-## License
+### Dependencies
+- `commander`: CLI argument parsing
+- `node-fetch`: HTTP requests for URL scanning
+
+### Scripts
+- `npm start`: Run the CLI tool
+- `npm test`: Run the test suite
+
+## 📄 License
 
 MIT License - feel free to use this tool for any purpose.
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request 
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**"No base64 data found"**
+- Check that your data is valid base64
+- Ensure data URLs start with `data:image/...`
+- Verify file encoding (should be UTF-8)
+
+**"Could not detect image type"**
+- The base64 data might be corrupted
+- Try with a known good image first
+- Check if the format is supported
+
+**"URL fetch failed"**
+- Verify the URL is accessible
+- Check your internet connection
+- Some sites may block automated requests
+
+**"Permission denied"**
+- Check file/directory permissions
+- Ensure you have write access to the output location
+
+### Getting Help
+
+If you encounter issues:
+1. Check the error message for specific details
+2. Verify your input format
+3. Test with a simple example first
+4. Check the supported formats list 

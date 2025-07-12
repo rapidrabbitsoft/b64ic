@@ -36,6 +36,52 @@ function scanForBase64Data(content) {
 }
 
 /**
+ * Enhanced scan for HTML content with base64 data
+ * @param {string} htmlContent - The HTML content to scan
+ * @returns {string[]} - Array of found base64 data URLs
+ */
+function scanHtmlForBase64Data(htmlContent) {
+  const base64Data = [];
+  
+  // Pattern for data URLs in various contexts
+  const patterns = [
+    // Standard data URLs
+    /data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/g,
+    // In img src attributes
+    /src\s*=\s*["'](data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)["']/gi,
+    // In background-image CSS
+    /background-image\s*:\s*url\(["']?(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)["']?\)/gi,
+    // In style attributes
+    /style\s*=\s*["'][^"']*url\(["']?(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)["']?\)[^"']*["']/gi,
+    // In CSS content
+    /content\s*:\s*url\(["']?(data:image\/[^;]+;base64,[A-Za-z0-9+/=]+)["']?\)/gi
+  ];
+  
+  patterns.forEach(pattern => {
+    const matches = htmlContent.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        // Extract just the data URL part from matches that include HTML attributes
+        let dataUrl = match;
+        if (match.includes('src=') || match.includes('background-image') || match.includes('style=') || match.includes('content=')) {
+          const dataUrlMatch = match.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
+          if (dataUrlMatch) {
+            dataUrl = dataUrlMatch[0];
+          }
+        }
+        
+        // Only add if it's a valid data URL and not already in the array
+        if (dataUrl.startsWith('data:image/') && !base64Data.includes(dataUrl)) {
+          base64Data.push(dataUrl);
+        }
+      });
+    }
+  });
+  
+  return base64Data;
+}
+
+/**
  * Fetch content from URL and scan for base64 data
  * @param {string} url - The URL to fetch
  * @returns {Promise<string[]>} - Array of found base64 data URLs
@@ -49,8 +95,19 @@ async function fetchAndScanUrl(url) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
+    const contentType = response.headers.get('content-type') || '';
     const content = await response.text();
-    const base64Data = scanForBase64Data(content);
+    
+    let base64Data = [];
+    
+    // Check if it's HTML content
+    if (contentType.includes('text/html') || content.trim().toLowerCase().startsWith('<!doctype') || content.includes('<html')) {
+      console.log('📄 Detected HTML content, performing enhanced scan...');
+      base64Data = scanHtmlForBase64Data(content);
+    } else {
+      console.log('📄 Performing standard content scan...');
+      base64Data = scanForBase64Data(content);
+    }
     
     if (base64Data.length === 0) {
       throw new Error('No base64 image data found in the URL content');
@@ -305,7 +362,7 @@ if (process.argv.length === 2) {
         console.log('📁 Reading base64 data from: DATA');
       } catch (err) {
         console.error('❌ Error: No arguments provided and no DATA file found in current directory.');
-        console.error('Usage: ./b64ic [data] [options] or ./b64ic -f <file> [options] or ./b64ic [options] (with DATA file)');
+        console.error('Usage: ./b64ic [data] [options] or ./b64ic -f <file> [options] or ./b64ic -u <url> [options] or ./b64ic [options] (with DATA file)');
         process.exit(1);
       }
       
@@ -324,45 +381,82 @@ if (process.argv.length === 2) {
       process.exit(1);
     }
   })();
-} else if (process.argv.length > 2 && !process.argv[2].startsWith('-') && !['convert', 'detect'].includes(process.argv[2])) {
-  // If first argument is not a command, treat it as data for convert
-  let data = process.argv[2];
-  let remainingArgs = process.argv.slice(3);
+} else if (process.argv.length > 2 && (process.argv[2].startsWith('-') || !['convert', 'detect'].includes(process.argv[2]))) {
+  // Check if it's a help or version request
+  if (process.argv[2] === '-h' || process.argv[2] === '--help') {
+    program.help();
+  }
+  if (process.argv[2] === '-V' || process.argv[2] === '--version') {
+    program.version();
+  }
   
-  // Parse remaining arguments for convert options
+  // Improved argument parsing for default mode
+  let data = null;
   let fileOption = null;
   let urlOption = null;
   let outputOption = null;
   let outputDir = null;
-  
-  for (let i = 0; i < remainingArgs.length; i++) {
-    if (remainingArgs[i] === '-f' || remainingArgs[i] === '--file') {
-      fileOption = remainingArgs[i + 1];
+
+  for (let i = 2; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    if (arg === '-f' || arg === '--file') {
+      fileOption = process.argv[i + 1];
       i++;
-    } else if (remainingArgs[i] === '-u' || remainingArgs[i] === '--url') {
-      urlOption = remainingArgs[i + 1];
+    } else if (arg === '-u' || arg === '--url') {
+      urlOption = process.argv[i + 1];
       i++;
-    } else if (remainingArgs[i] === '-o' || remainingArgs[i] === '--output') {
-      outputOption = remainingArgs[i + 1];
+    } else if (arg === '-o' || arg === '--output') {
+      outputOption = process.argv[i + 1];
       i++;
-    } else if (remainingArgs[i] === '-d' || remainingArgs[i] === '--outputdir') {
-      outputDir = remainingArgs[i + 1];
+    } else if (arg === '-d' || arg === '--outputdir') {
+      outputDir = process.argv[i + 1];
       i++;
+    } else if (!arg.startsWith('-') && data === null) {
+      data = arg;
     }
   }
 
-      (async () => {
-      try {
-        let base64Data = data;
-        // If no data is provided, try URL option first, then file option, then DATA file
-        if (!base64Data) {
-          if (urlOption) {
-            const base64DataArray = await fetchAndScanUrl(urlOption);
+  (async () => {
+    try {
+      let base64Data = data;
+      // If no data is provided, try URL option first, then file option, then DATA file
+      if (!base64Data) {
+        if (urlOption) {
+          const base64DataArray = await fetchAndScanUrl(urlOption);
+          if (base64DataArray.length === 1) {
+            base64Data = base64DataArray[0];
+          } else {
+            // Multiple images found, process each one
+            console.log(`�� Processing ${base64DataArray.length} images from URL...`);
+            for (let i = 0; i < base64DataArray.length; i++) {
+              const currentOutput = outputOption ? 
+                `${outputOption.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
+                `${process.cwd()}/image_${Date.now()}_${i + 1}`;
+              
+              if (outputDir) {
+                const dir = outputDir || process.cwd();
+                const filename = currentOutput.split('/').pop();
+                const finalOutput = `${dir}/${filename}`;
+                await convertBase64ToImage(base64DataArray[i], finalOutput);
+              } else {
+                await convertBase64ToImage(base64DataArray[i], currentOutput);
+              }
+            }
+            return; // Exit early since we processed multiple images
+          }
+        } else if (fileOption) {
+          const fileContent = await fs.readFile(fileOption, 'utf8');
+          console.log(`📁 Reading base64 data from: ${fileOption}`);
+          
+          // Check if it's HTML content
+          if (fileContent.trim().toLowerCase().startsWith('<!doctype') || fileContent.includes('<html')) {
+            console.log('📄 Detected HTML content, performing enhanced scan...');
+            const base64DataArray = scanHtmlForBase64Data(fileContent);
             if (base64DataArray.length === 1) {
               base64Data = base64DataArray[0];
-            } else {
+            } else if (base64DataArray.length > 1) {
               // Multiple images found, process each one
-              console.log(`📸 Processing ${base64DataArray.length} images from URL...`);
+              console.log(`📸 Processing ${base64DataArray.length} images from HTML file...`);
               for (let i = 0; i < base64DataArray.length; i++) {
                 const currentOutput = outputOption ? 
                   `${outputOption.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
@@ -378,11 +472,37 @@ if (process.argv.length === 2) {
                 }
               }
               return; // Exit early since we processed multiple images
+            } else {
+              throw new Error('No base64 image data found in the HTML file');
             }
-          } else if (fileOption) {
-            base64Data = await fs.readFile(fileOption, 'utf8');
-            console.log(`📁 Reading base64 data from: ${fileOption}`);
           } else {
+            // Not HTML, use standard scanning
+            const base64DataArray = scanForBase64Data(fileContent);
+            if (base64DataArray.length === 1) {
+              base64Data = base64DataArray[0];
+            } else if (base64DataArray.length > 1) {
+              // Multiple images found, process each one
+              console.log(`📸 Processing ${base64DataArray.length} images from file...`);
+              for (let i = 0; i < base64DataArray.length; i++) {
+                const currentOutput = outputOption ? 
+                  `${outputOption.replace(/\.[^/.]+$/, '')}_${i + 1}` : 
+                  `${process.cwd()}/image_${Date.now()}_${i + 1}`;
+                
+                if (outputDir) {
+                  const dir = outputDir || process.cwd();
+                  const filename = currentOutput.split('/').pop();
+                  const finalOutput = `${dir}/${filename}`;
+                  await convertBase64ToImage(base64DataArray[i], finalOutput);
+                } else {
+                  await convertBase64ToImage(base64DataArray[i], currentOutput);
+                }
+              }
+              return; // Exit early since we processed multiple images
+            } else {
+              base64Data = fileContent;
+            }
+          }
+        } else {
             // Look for a file called DATA in the current directory
             try {
               base64Data = await fs.readFile('DATA', 'utf8');
