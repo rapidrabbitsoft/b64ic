@@ -20,6 +20,14 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rapidrabbitsoft/b64ic.git"
+  },
+  "homepage": "https://github.com/rapidrabbitsoft/b64ic#readme",
+  "bugs": {
+    "url": "https://github.com/rapidrabbitsoft/b64ic/issues"
+  },
   "dependencies": {
     "chalk": "^5.4.1",
     "commander": "^11.1.0",
